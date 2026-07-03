@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Ceviches de la Fuente - Punto de Venta</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <style>
+    :root {
+      --primary: #005B60;
+      --primary-dark: #003B3F;
+      --accent: #00838F;
+      --bg: #F4FBFB;
+      --card-bg: #ffffff;
+      --text: #2c3e50;
+    }
+    * { box-sizing: border-box; font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 0; }
+    body { background-color: var(--bg); color: var(--text); padding-bottom: 20px; }
+    
+    #login-page { position: fixed; top:0; left:0; width:100%; height:100%; background: linear-gradient(135deg, var(--primary), var(--accent)); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+    .login-card { background: white; padding: 30px; border-radius: 15px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); text-align: center; }
+    .login-card h2 { color: var(--primary); margin-bottom: 5px; }
+    .login-card p { font-size: 14px; color: #7f8c8d; margin-bottom: 20px; }
+    
+    .top-bar-container { position: sticky; top: 0; z-index: 950; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+    header { background-color: var(--primary); color: white; padding: 12px; text-align: center; font-size: 18px; font-weight: bold; }
+    .user-badge { font-size: 12px; font-weight: normal; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; margin-top: 4px; display: inline-block; }
+    
+    nav { background: white; display: table; table-layout: fixed; width: 100%; border-bottom: 1px solid #eaeded; }
+    .nav-item { display: table-cell; text-align: center; padding: 14px 0; font-size: 13px; font-weight: bold; color: #7f8c8d; cursor: pointer; }
+    .nav-item.active { color: var(--primary); border-bottom: 3px solid var(--primary); background: #f9fbfb; }
+    .admin-only { display: none; }
+    
+    .container { padding: 15px; max-width: 800px; margin: 0 auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    
+    .card { background: var(--card-bg); padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 15px; }
+    .card h3 { margin-bottom: 12px; color: var(--primary); font-size: 16px; border-left: 4px solid var(--accent); padding-left: 8px; }
+    
+    label { display: block; margin-bottom: 5px; font-size: 13px; font-weight: bold; color: #34495e; }
+    input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 15px; background: #fafafa; }
+    
+    button { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 15px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+    .btn-primary { background-color: var(--primary); color: white; }
+    .btn-accent { background-color: var(--accent); color: white; }
+    .btn-danger { background-color: #c0392b; color: white; }
+    
+    .visor-tabla { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    .visor-tabla th { background: #eaeded; text-align: left; padding: 10px; font-weight: bold; }
+    .visor-tabla td { padding: 10px; border-bottom: 1px solid #eaeded; }
+    .total-box { font-size: 20px; font-weight: bold; text-align: right; color: var(--primary); padding: 15px 0; border-top: 2px solid var(--primary); margin-top: 10px; }
+    
+    .caja-pago { background: #edf2f7; padding: 15px; border-radius: 8px; border: 1px dashed var(--primary); margin-top: 15px; }
+    .cambio-texto { font-size: 18px; font-weight: bold; color: #27ae60; margin-top: 5px; }
+    
+    .alert { padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; font-weight: bold; text-align: center; display: none; }
+    .alert-success { background: #d4edda; color: #155724; }
+    .alert-error { background: #f8d7da; color: #721c24; }
+    
+    #loading { display:none; position: fixed; top: 15px; right: 15px; background: rgba(0,0,0,0.7); color: white; padding: 8px 15px; border-radius: 20px; font-size: 12px; z-index: 2000; }
+  </style>
+</head>
+<body>
+
+  <div id="loading">📡 Conectando con Google...</div>
+
+  <div id="login-page">
+    <div class="login-card">
+      <h2>Ceviches de la Fuente</h2>
+      <p>Punto de Venta Móvil</p>
+      <div id="login-alert" class="alert alert-error"></div>
+      <label>Usuario</label>
+      <input type="text" id="login-user" placeholder="Ej: admin">
+      <label>Contraseña</label>
+      <input type="password" id="login-pass" placeholder="••••••••">
+      <button class="btn-primary" onclick="ejecutarLogin()">Entrar al Sistema</button>
+    </div>
+  </div>
+
+  <div class="top-bar-container">
+    <header>
+      Ceviches de la Fuente
+      <div><span class="user-badge" id="lbl-usuario">Usuario: -</span></div>
+    </header>
+    <nav id="menu-navegacion">
+      <div class="nav-item active" onclick="cambiarPestana('ventas', this)">📋 Ventas</div>
+      <div class="nav-item admin-only" id="menu-reg" onclick="cambiarPestana('registros', this)">📊 Registros</div>
+      <div class="nav-item admin-only" id="menu-cfg" onclick="cambiarPestana('config', this)">⚙️ Config</div>
+    </nav>
+  </div>
+
+  <div class="container">
+    <div id="global-alert" class="alert alert-success"></div>
+
+    <div id="tab-ventas" class="tab-content active">
+      <div class="card">
+        <h3>Caja Registradora</h3>
+        <button class="btn-accent" style="padding:8px; margin-bottom:12px; font-size:13px;" onclick="limpiarCaja()">🔄 Nueva Venta / Limpiar Todo</button>
+        <label>Seleccionar Platillo</label>
+        <select id="sel-producto"></select>
+        <label>Cantidad</label>
+        <input type="number" id="num-cantidad" value="1" min="1">
+        <button class="btn-primary" onclick="agregarAlCarrito()">＋ Agregar a la Cuenta</button>
+      </div>
+
+      <div class="card">
+        <h3>Visor de la Venta</h3>
+        <table class="visor-tabla">
+          <thead>
+            <tr>
+              <th>Cant</th>
+              <th>Producto</th>
+              <th>Precio</th>
+              <th>Total</th>
+              <th>Quitar</th>
+            </tr>
+          </thead>
+          <tbody id="lista-carrito"></tbody>
+        </table>
+        <div class="total-box">TOTAL A COBRAR: $<span id="txt-total-cuenta">0.00</span></div>
+        <div class="caja-pago">
+          <label>Efectivo Recibido ($)</label>
+          <input type="number" id="num-pago" placeholder="Monto entregado" oninput="calcularCambio()">
+          <div class="cambio-texto">Su Cambio: $<span id="txt-cambio">0.00</span></div>
+        </div>
+        <button class="btn-primary" style="background:#27ae60; margin-top:15px; font-size:16px;" onclick="finalizarCobro()">💰 GUARDAR Y REGISTRAR VENTA</button>
+      </div>
+    </div>
+
+    <div id="tab-registros" class="tab-content">
+      <div class="card">
+        <h3>Historial Financiero</h3>
+        
+        <label>¿Qué deseas consultar?</label>
+        <select id="filtro-tipo-reporte" onchange="limpiarPantallaFiltros()">
+          <option value="ventas">📋 Reporte de Ventas</option>
+          <option value="gastos">💰 Reporte de Gastos e Inversiones</option>
+        </select>
+
+        <label>Desde:</label>
+        <input type="date" id="filtro-inicio">
+        <label>Hasta:</label>
+        <input type="date" id="filtro-fin">
+        <button class="btn-primary" onclick="cargarDatosDesdeGoogle()">🔍 Cargar Datos del Rango</button>
+        
+        <hr style="margin: 15px 0; border: 0; border-top: 1px solid #eaeded;">
+        
+        <label style="color: var(--accent);" id="lbl-buscador-texto">Filtrar por nombre en los resultados:</label>
+        <input type="text" id="filtro-texto" placeholder="Ej: Ceb, Tos, Camarón, Jalapeño..." oninput="filtrarPorTexto()" disabled>
+      </div>
+
+      <div class="card" style="overflow-x:auto;">
+        <h3 id="titulo-tabla-resultados">Resultados Obtenidos</h3>
+        <table class="visor-tabla" id="tabla-reportes-maestra">
+          <thead>
+            <tr id="headers-dinamicos">
+              <th>Folio</th>
+              <th>Fecha</th>
+              <th>Producto</th>
+              <th>Cant</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody id="lista-registro-filtrado">
+            <tr><td colspan="5" style="text-align:center; color:#95a5a6;">Selecciona opciones y presiona Cargar...</td></tr>
+          </tbody>
+        </table>
+        <div class="total-box" style="font-size:17px; color:#c0392b;">Suma en Pantalla: $<span id="txt-total-filtrado">0.00</span></div>
+      </div>
+    </div>
+
+    <div id="tab-config" class="tab-content">
+      <div class="card">
+        <h3>Modificar Precios y Catálogo</h3>
+        <label>Seleccionar Platillo</label>
+        <select id="cfg-sel-producto" onchange="cargarCamposProducto()">
+          <option value="NUEVO">-- CREAR NUEVO PRODUCTO --</option>
+        </select>
+        <label>Nombre</label>
+        <input type="text" id="cfg-nombre-prod">
+        <label>Categoría</label>
+        <input type="text" id="cfg-cat-prod" placeholder="Ej: Cocteles, Sopas, Bebidas">
+        <label>Precio ($)</label>
+        <input type="number" id="cfg-precio-prod" step="0.01">
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-primary" id="btn-prod-guardar" onclick="procesarProducto('agregar')">Guardar</button>
+          <button class="btn-danger" id="btn-prod-eliminar" style="display:none;" onclick="procesarProducto('eliminar')">Eliminar</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Egresos: Inversión, Merma o Promociones</h3>
+        
+        <label>Concepto (Materia prima o Insumo)</label>
+        <select id="inv-sel-concepto" onchange="controlarInputConceptoNuevo()">
+          </select>
+        <input type="text" id="inv-concepto-nuevo" placeholder="Escribe el nombre del nuevo insumo (Ej: Cebolla Morada)" style="display:none; margin-top:5px;">
+        
+        <label>Cantidad</label>
+        <input type="number" id="inv-cantidad" value="1" step="0.01" min="0.01">
+        
+        <label>Unidad de Medida</label>
+        <select id="inv-sel-unidad" onchange="controlarInputUnidadNueva()">
+          </select>
+        <input type="text" id="inv-unidad-nueva" placeholder="Escribe la nueva unidad (Ej: Manojos)" style="display:none; margin-top:5px;">
+        
+        <label>Costo / Impacto Total ($)</label>
+        <input type="number" id="inv-costo" step="0.01">
+        
+        <label>Tipo de Egreso</label>
+        <select id="inv-tipo">
+          <option value="Inversión">Inversión (Insumos/Materia Prima)</option>
+          <option value="Merma">Merma (Pérdidas de producto)</option>
+          <option value="Promoción">Promoción (Gasto por Cupones/Descuentos)</option>
+        </select>
+        <button class="btn-accent" onclick="procesarGastoInversion()">Registrar Gasto</button>
+      </div>
+
+      <div class="card">
+        <h3>Alta de Trabajadores</h3>
+        <label>Usuario</label>
+        <input type="text" id="user-name-new">
+        <label>Contraseña</label>
+        <input type="text" id="user-pass-new">
+        <label>Permisos</label>
+        <select id="user-role-new">
+          <option value="Trabajador">Trabajador (Solo ve Caja Registradora)</option>
+          <option value="Administrador">Administrador (Acceso Total)</option>
+        </select>
+        <button class="btn-primary" onclick="procesarNuevoUsuario()">Registrar Personal</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxfMhO93UJes-rC1Lg1V0QxStCRdptCzGaUaZyNr5XNIspCSgSvKkM_FUjAdgf8Zi-m/exec"; 
+
+    var usuarioActivo = "";
+    var productosMaestros = [];
+    var carritoActual = [];
+    
+    // Almacenes de memoria globales
+    var datosFiltradosCache = []; 
+    var catalogoConceptosInsumos = []; 
+
+    async function ejecutarAPI(accion, datosExtra = {}) {
+      document.getElementById("loading").style.display = "block";
+      var datosEnviar = { action: accion, ...datosExtra };
+      try {
+        var response = await fetch(WEB_APP_URL, {
+          method: "POST",
+          mode: "cors",
+          headers: { "Content-Type": "text/plain;charset=utf-8" }, 
+          body: JSON.stringify(datosEnviar)
+        });
+        var resParsed = await response.json();
+        document.getElementById("loading").style.display = "none";
+        return resParsed;
+      } catch (err) {
+        document.getElementById("loading").style.display = "none";
+        console.error(err);
+        alert("Error de conexión remota con Google Sheets.");
+        return { success: false, message: "Error de red" };
+      }
+    }
+
+    async function ejecutarLogin() {
+      var user = document.getElementById("login-user").value;
+      var pass = document.getElementById("login-pass").value;
+      if(!user || !pass) return;
+      
+      var res = await ejecutarAPI("loginUsuario", { usuario: user, password: pass });
+      if(res.success) {
+        usuarioActivo = res.username;
+        document.getElementById("lbl-usuario").innerText = "Usuario: " + usuarioActivo + " (" + res.role + ")";
+        document.getElementById("login-page").style.display = "none";
+        if(res.role === "Administrador") {
+          document.querySelectorAll(".admin-only").forEach(el => el.style.display = "table-cell");
+        }
+        actualizarCombosProductos();
+        cargarListaInsumosGuardados();
+      } else {
+        mostrarAlerta("login-alert", res.message);
+      }
+    }
+
+    async function actualizarCombosProductos() {
+      var productos = await ejecutarAPI("obtenerProductos");
+      productosMaestros = productos;
+      var selCaja = document.getElementById("sel-producto");
+      var selCfg = document.getElementById("cfg-sel-producto");
+      selCaja.innerHTML = "";
+      selCfg.innerHTML = '<option value="NUEVO">-- CREAR NUEVO PRODUCTO --</option>';
+      productos.forEach(p => {
+        selCaja.innerHTML += `<option value="${p.id}">${p.nombre} ($${p.precio.toFixed(2)})</option>`;
+        selCfg.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+      });
+    }
+
+    // CARGA CONCEPTOS Y UNIDADES AUTO-GUARDADAS DESDE EL EXCEL
+    async function cargarListaInsumosGuardados() {
+      var res = await ejecutarAPI("obtenerConceptosYUnidades");
+      catalogoConceptosInsumos = res.conceptos;
+      
+      var selConcepto = document.getElementById("inv-sel-concepto");
+      selConcepto.innerHTML = '<option value="__NUEVO__">＋ AGREGAR NUEVO INSUMO...</option>';
+      res.conceptos.forEach(c => {
+        selConcepto.innerHTML += `<option value="${c.concepto}">${c.concepto}</option>`;
+      });
+
+      var selUnidad = document.getElementById("inv-sel-unidad");
+      selUnidad.innerHTML = "";
+      res.unidades.forEach(u => {
+        selUnidad.innerHTML += `<option value="${u}">${u}</option>`;
+      });
+      selUnidad.innerHTML += '<option value="__OTRA__">⚠️ OTRA UNIDAD...</option>';
+      
+      controlarInputConceptoNuevo();
+      controlarInputUnidadNueva();
+    }
+
+    function controlarInputConceptoNuevo() {
+      var combo = document.getElementById("inv-sel-concepto");
+      var inputTxt = document.getElementById("inv-concepto-nuevo");
+      var selUnidad = document.getElementById("inv-sel-unidad");
+      
+      if(combo.value === "__NUEVO__") {
+        inputTxt.style.display = "block";
+      } else {
+        inputTxt.style.display = "none";
+        // Auto-seleccionar la unidad que se usó la última vez con ese concepto
+        var match = catalogoConceptosInsumos.find(x => x.concepto === combo.value);
+        if(match && match.unidadDefault) {
+          selUnidad.value = match.unidadDefault;
+          controlarInputUnidadNueva();
+        }
+      }
+    }
+
+    function controlarInputUnidadNueva() {
+      var combo = document.getElementById("inv-sel-unidad");
+      var inputTxt = document.getElementById("inv-unidad-nueva");
+      if(combo.value === "__OTRA__") {
+        inputTxt.style.display = "block";
+      } else {
+        inputTxt.style.display = "none";
+      }
+    }
+
+    function agregarAlCarrito() {
+      var idSel = document.getElementById("sel-producto").value;
+      var cantidad = parseInt(document.getElementById("num-cantidad").value, 10);
+      if(isNaN(cantidad) || cantidad <= 0) return;
+      
+      var prod = productosMaestros.find(p => p.id === idSel);
+      if(!prod) return;
+      
+      var existencial = carritoActual.find(item => item.id === prod.id);
+      if(existencial) { existencial.cantidad += cantidad; } 
+      else { carritoActual.push({ id: prod.id, nombre: prod.nombre, cantidad: cantidad, precio: prod.precio }); }
+      
+      renderizarVisorCaja();
+      document.getElementById("num-cantidad").value = "1";
+    }
+
+    function renderizarVisorCaja() {
+      var tbody = document.getElementById("lista-carrito");
+      tbody.innerHTML = "";
+      var total = 0;
+      carritoActual.forEach((item, index) => {
+        var subtotal = item.cantidad * item.precio;
+        total += subtotal;
+        tbody.innerHTML += `<tr><td><b>${item.cantidad}</b></td><td>${item.nombre}</td><td>$${item.precio.toFixed(2)}</td><td>$${subtotal.toFixed(2)}</td><td><button class="btn-danger" style="padding:4px 8px; font-size:11px;" onclick="eliminarItemCarrito(${index})">❌</button></td></tr>`;
+      });
+      document.getElementById("txt-total-cuenta").innerText = total.toFixed(2);
+      calcularCambio();
+    }
+
+    function eliminarItemCarrito(index) {
+      carritoActual.splice(index, 1);
+      renderizarVisorCaja();
+    }
+
+    function calcularCambio() {
+      var total = parseFloat(document.getElementById("txt-total-cuenta").innerText);
+      var pago = parseFloat(document.getElementById("num-pago").value);
+      var cambio = 0;
+      if(!isNaN(pago) && pago >= total) { cambio = pago - total; }
+      document.getElementById("txt-cambio").innerText = cambio.toFixed(2);
+    }
+
+    async function finalizarCobro() {
+      if(carritoActual.length === 0) return;
+      var total = parseFloat(document.getElementById("txt-total-cuenta").innerText);
+      var pago = parseFloat(document.getElementById("num-pago").value);
+      if(isNaN(pago) || pago < total) { alert("Monto insuficiente."); return; }
+      
+      var res = await ejecutarAPI("registrarVenta", { carrito: carritoActual, usuarioActivo: usuarioActivo });
+      if(res.success) {
+        mostrarAlertaFlotante("¡Venta completada! Folio: " + res.folio);
+        limpiarCaja();
+      }
+    }
+
+    function limpiarCaja() {
+      carritoActual = [];
+      document.getElementById("num-pago").value = "";
+      document.getElementById("txt-cambio").innerText = "0.00";
+      renderizarVisorCaja();
+    }
+
+    function limpiarPantallaFiltros() {
+      document.getElementById("filtro-texto").value = "";
+      document.getElementById("filtro-texto").disabled = true;
+      datosFiltradasCache = [];
+      var tbody = document.getElementById("lista-registro-filtrado");
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#95a5a6;">Cambiaste de reporte. Elige fechas y presiona cargar...</td></tr>';
+      document.getElementById("txt-total-filtrado").innerText = "0.00";
+    }
+
+    // CARGAR DESDE GOOGLE (VENTAS O GASTOS COPIANDO A CACHÉ)
+    async function cargarDatosDesdeGoogle() {
+      var tipoReporte = document.getElementById("filtro-tipo-reporte").value;
+      var ini = document.getElementById("filtro-inicio").value;
+      var fin = document.getElementById("filtro-fin").value;
+      if(!ini || !fin) { alert("Coloca ambas fechas."); return; }
+      
+      var headers = document.getElementById("headers-dinamicos");
+      
+      if(tipoReporte === "ventas") {
+        headers.innerHTML = "<th>Folio</th><th>Fecha</th><th>Producto</th><th>Cant</th><th>Total</th>";
+        var res = await ejecutarAPI("obtenerRegistroVentas", { fechaInicio: ini, fechaFin: fin });
+        datosFiltradosCache = res.lista;
+      } else {
+        headers.innerHTML = "<th>Fecha</th><th>Concepto</th><th>Cant</th><th>Unidad</th><th>Costo</th><th>Tipo</th>";
+        var res = await ejecutarAPI("obtenerRegistroGastos", { fechaInicio: ini, fechaFin: fin });
+        datosFiltradosCache = res.lista;
+      }
+      
+      document.getElementById("filtro-texto").value = "";
+      document.getElementById("filtro-texto").disabled = false;
+      
+      filtrarPorTexto(); 
+    }
+
+    // BUSCADOR EN TIEMPO REAL MULTI-REPORTE
+    function filtrarPorTexto() {
+      var tipoReporte = document.getElementById("filtro-tipo-reporte").value;
+      var texto = document.getElementById("filtro-texto").value.toLowerCase();
+      var tbody = document.getElementById("lista-registro-filtrado");
+      tbody.innerHTML = "";
+      var sumaTotal = 0;
+      
+      if(tipoReporte === "ventas") {
+        var coincidentes = datosFiltradosCache.filter(v => v.producto.toLowerCase().includes(texto));
+        if(coincidentes.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:#95a5a6;">No se hallaron coincidencias.</td></tr>';
+        } else {
+          coincidentes.forEach(v => {
+            tbody.innerHTML += `<tr><td><b>${v.folio}</b></td><td>${v.fecha.substring(0,10)}</td><td>${v.producto}</td><td>${v.cantidad}</td><td>$${v.total.toFixed(2)}</td></tr>`;
+            sumaTotal += v.total;
+          });
+        }
+      } else {
+        // Mapeo dinámico si se busca insumos/gastos (Ej: Cebolla, Chile)
+        var coincidentes = datosFiltradosCache.filter(g => g.concepto.toLowerCase().includes(texto));
+        if(coincidentes.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:#95a5a6;">No se hallaron gastos con ese nombre.</td></tr>';
+        } else {
+          coincidentes.forEach(g => {
+            tbody.innerHTML += `<tr><td>${g.fecha.substring(0,10)}</td><td><b>${g.concepto}</b></td><td>${g.cantidad}</td><td>${g.unidad}</td><td>$${g.total.toFixed(2)}</td><td><small>${g.tipo}</small></td></tr>`;
+            sumaTotal += g.total;
+          });
+        }
+      }
+      document.getElementById("txt-total-filtrado").innerText = sumaTotal.toFixed(2);
+    }
+
+    function cargarCamposProducto() {
+      var val = document.getElementById("cfg-sel-producto").value;
+      var btnGuardar = document.getElementById("btn-prod-guardar");
+      var btnEliminar = document.getElementById("btn-prod-eliminar");
+      if (val === "NUEVO") {
+        document.getElementById("cfg-nombre-prod").value = "";
+        document.getElementById("cfg-cat-prod").value = "";
+        document.getElementById("cfg-precio-prod").value = "";
+        btnGuardar.innerText = "Guardar";
+        btnGuardar.setAttribute("onclick", "procesarProducto('agregar')");
+        btnEliminar.style.display = "none";
+      } else {
+        var p = productosMaestros.find(x => x.id === val);
+        document.getElementById("cfg-nombre-prod").value = p.nombre;
+        document.getElementById("cfg-cat-prod").value = p.categoria;
+        document.getElementById("cfg-precio-prod").value = p.precio;
+        btnGuardar.innerText = "Modificar";
+        btnGuardar.setAttribute("onclick", "procesarProducto('modificar')");
+        btnEliminar.style.display = "block";
+      }
+    }
+
+    async function procesarProducto(accion) {
+      var id = document.getElementById("cfg-sel-producto").value;
+      var nombre = document.getElementById("cfg-nombre-prod").value;
+      var cat = document.getElementById("cfg-cat-prod").value;
+      var precio = document.getElementById("cfg-precio-prod").value;
+      if(accion !== 'eliminar' && (!nombre || !precio)) return;
+      
+      var res = await ejecutarAPI("guardarProducto", { id: id, nombre: nombre, categoria: cat, precio: precio, accion: accion });
+      mostrarAlertaFlotante(res.message);
+      actualizarCombosProductos();
+      document.getElementById("cfg-sel-producto").value = "NUEVO";
+      cargarCamposProducto();
+    }
+
+    async function procesarGastoInversion() {
+      var comboConcepto = document.getElementById("inv-sel-concepto").value;
+      var inputConcepto = document.getElementById("inv-concepto-nuevo").value;
+      var conceptoFinal = (comboConcepto === "__NUEVO__") ? inputConcepto : comboConcepto;
+      
+      var cantidad = document.getElementById("inv-cantidad").value;
+      
+      var comboUnidad = document.getElementById("inv-sel-unidad").value;
+      var inputUnidad = document.getElementById("inv-unidad-nueva").value;
+      var unidadFinal = (comboUnidad === "__OTRA__") ? inputUnidad : comboUnidad;
+      
+      var costo = document.getElementById("inv-costo").value;
+      var tipo = document.getElementById("inv-tipo").value;
+      
+      if(!conceptoFinal || !cantidad || !unidadFinal || !costo) {
+        alert("Completa todos los campos del egreso.");
+        return;
+      }
+      
+      var res = await ejecutarAPI("registrarInversionMateria", { concepto: conceptoFinal, cantidad: cantidad, unidad: unidadFinal, costo: costo, tipo: tipo });
+      mostrarAlertaFlotante(res.message);
+      
+      document.getElementById("inv-concepto-nuevo").value = "";
+      document.getElementById("inv-cantidad").value = "1";
+      document.getElementById("inv-unidad-nueva").value = "";
+      document.getElementById("inv-costo").value = "";
+      
+      // Actualizar los catálogos desplegables en vivo para que ya aparezca guardado
+      cargarListaInsumosGuardados();
+    }
+
+    async function procesarNuevoUsuario() {
+      var u = document.getElementById("user-name-new").value;
+      var p = document.getElementById("user-pass-new").value;
+      var r = document.getElementById("user-role-new").value;
+      if(!u || !p) return;
+      
+      var res = await ejecutarAPI("registrarUsuario", { usuario: u, password: p, rol: r });
+      mostrarAlertaFlotante(res.message);
+      document.getElementById("user-name-new").value = "";
+      document.getElementById("user-pass-new").value = "";
+    }
+
+    function cambiarPestana(pestana, elem) {
+      document.querySelectorAll(".tab-content").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+      document.getElementById("tab-" + pestana).classList.add("active");
+      elem.classList.add("active");
+    }
+
+    function mostrarAlerta(id, texto) {
+      var el = document.getElementById(id); el.innerText = texto; el.style.display = "block";
+    }
+
+    function mostrarAlertaFlotante(texto) {
+      var el = document.getElementById("global-alert"); el.innerText = texto; el.style.display = "block";
+      window.scrollTo(0, 0);
+      setTimeout(() => el.style.display = "none", 4000);
+    }
+  </script>
+</body>
+</html>
